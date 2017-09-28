@@ -1,3 +1,5 @@
+package org.tksfz.formless
+
 import play.api.data._
 import play.api.data.Forms._
 import play.api.data.validation.Constraint
@@ -13,6 +15,8 @@ object Mapper {
 
   type Aux[A, B] = Mapper[A] { type Out = B }
 
+  def get[L <: HList](l: L)(implicit mapper: Mapper[L]) = mapper.apply(l)
+
   /**
     * Instances for Mappers that _accept_ records with key ->> mapper
     * and _output_ mappings of HList records
@@ -23,7 +27,7 @@ object Mapper {
     *     'foo ->> nonEmptyText
     */
   implicit def h1[K <: Symbol, T]
-  (implicit wk: Witness.Aux[K]): Mapper[FieldType[K, Mapping[T]]] = new Mapper[FieldType[K, Mapping[T]]] {
+  (implicit wk: Witness.Aux[K]): Mapper.Aux[FieldType[K, Mapping[T]], FieldType[K, T]] = new Mapper[FieldType[K, Mapping[T]]] {
     type Out = FieldType[K, T]
     override def apply(t: FieldType[K, Mapping[T]]): Mapping[FieldType[K, T]] = {
       // Since FieldType[K, V] == V tagged with K, the transformation is trivial
@@ -33,15 +37,15 @@ object Mapper {
 
   // Note there's no instance for HNil
 
-  implicit def hsingle[K <: Symbol, T]
+  implicit def hsingle[K <: Symbol, T, TO]
   (implicit
     wk: Witness.Aux[K],
-   h1: Mapper[FieldType[K, Mapping[T]]]
-  ): Mapper[FieldType[K, Mapping[T]] :: HNil] = new Mapper[FieldType[K, Mapping[T]] :: HNil] {
-    type Out = FieldType[K, T] :: HNil
+   h1: Mapper.Aux[FieldType[K, Mapping[T]], TO]
+  ): Mapper.Aux[FieldType[K, Mapping[T]] :: HNil, TO :: HNil] = new Mapper[FieldType[K, Mapping[T]] :: HNil] {
+    type Out = TO :: HNil
 
-    override def apply(t: FieldType[K, Mapping[T]] :: HNil): Mapping[FieldType[K, T] :: HNil] = {
-      t.head.transform(t => t.asInstanceOf[FieldType[K, T]] :: HNil, b => b.head)
+    override def apply(t: FieldType[K, Mapping[T]] :: HNil): Mapping[TO :: HNil] = {
+      h1.apply(t.head).transform(t => t :: HNil, b => b.head)
     }
   }
 
