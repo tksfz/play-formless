@@ -13,9 +13,9 @@ object Main {
   val record =
       ('password ->> nonEmptyText) :: ('username ->> nonEmptyText) :: HNil
 
-  Mapper.get(('username ->> nonEmptyText) :: HNil)
+  MkMapping.get(('username ->> nonEmptyText) :: HNil)
 
-  val mapper = Mapper.get(record)
+  val mapper = MkMapping.get(record)
 
   val request = Map("username" -> Seq("jane"), "password" -> Seq("123456"))
 
@@ -28,7 +28,7 @@ object Main {
   }
 
   def two(): Unit = {
-    val mapper = Mapper.forCaseClass[Login].withMappings(record)
+    val mapper = MkMapping.forCaseClass[Login].withMappings(record)
     val form = Form(mapper)
     println(form.bindFromRequest(request))
   }
