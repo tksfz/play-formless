@@ -7,6 +7,9 @@ import shapeless._
 import shapeless.labelled._
 import shapeless.ops.hlist.Align
 
+/**
+  * Type class supporting creation of Mappings from specifications
+  */
 trait MkMapping[T] {
   type Out
   def apply(t: T): Mapping[Out]
@@ -14,21 +17,17 @@ trait MkMapping[T] {
 
 object MkMapping {
 
-  type Aux[A, B] = MkMapping[A] { type Out = B }
+  type Aux[T, Out0] = MkMapping[T] { type Out = Out0 }
 
   def get[L <: HList](l: L)(implicit mapper: MkMapping[L]) = mapper.apply(l)
 
   /**
-    * Instances for Mappers that _accept_ records with key ->> mapper
-    * and _output_ mappings of HList records
-    */
-
-  /**
-    * Mapper for record elements that supply the Mapping[T] directly:
+    * Instance for record elements that supply a Mapping with a Symbol singleton key:
+    *
     *     'foo ->> nonEmptyText
     */
-  implicit def h1[K <: Symbol, T]
-  (implicit wk: Witness.Aux[K]): MkMapping.Aux[FieldType[K, Mapping[T]], FieldType[K, T]] = new MkMapping[FieldType[K, Mapping[T]]] {
+  implicit def kvMkMapping[K <: Symbol, T]
+  (implicit wk: Witness.Aux[K]): Aux[FieldType[K, Mapping[T]], FieldType[K, T]] = new MkMapping[FieldType[K, Mapping[T]]] {
     type Out = FieldType[K, T]
     override def apply(t: FieldType[K, Mapping[T]]): Mapping[FieldType[K, T]] = {
       // Since FieldType[K, V] == V tagged with K, the transformation is trivial
@@ -36,31 +35,34 @@ object MkMapping {
     }
   }
 
+  /**
+    * Instances for HLists (both ordinary HLists and records, by the kv instances above)
+    */
+
   // Note there's no instance for HNil
 
-  implicit def hsingle[K <: Symbol, T, TO]
+  implicit def hsingleMkMapping[T, TO]
   (implicit
-    wk: Witness.Aux[K],
-   h1: MkMapping.Aux[FieldType[K, Mapping[T]], TO]
-  ): MkMapping.Aux[FieldType[K, Mapping[T]] :: HNil, TO :: HNil] = new MkMapping[FieldType[K, Mapping[T]] :: HNil] {
+    tMkMapping: MkMapping.Aux[T, TO]
+  ): Aux[T :: HNil, TO :: HNil] = new MkMapping[T :: HNil] {
     type Out = TO :: HNil
 
-    override def apply(t: FieldType[K, Mapping[T]] :: HNil): Mapping[TO :: HNil] = {
-      h1.apply(t.head).transform(to => to :: HNil, l => l.head)
+    override def apply(l: T :: HNil): Mapping[TO :: HNil] = {
+      tMkMapping.apply(l.head).transform(to => to :: HNil, l => l.head)
     }
   }
 
-  implicit def hcons[K <: Symbol, S, SO, T <: HList, TO <: HList]
+  implicit def hconsMkMapping[H, HO, T <: HList, TO <: HList]
   (implicit
-   single: MkMapping.Aux[FieldType[K, Mapping[S]], SO],
-   lmapper: MkMapping.Aux[T, TO]
-  ): MkMapping.Aux[FieldType[K, Mapping[S]] :: T, SO :: TO] = new MkMapping[FieldType[K, Mapping[S]] :: T] {
-    override type Out = SO :: TO
+   hMkMapping: MkMapping.Aux[H, HO],
+   tMkMapping: MkMapping.Aux[T, TO]
+  ): Aux[H :: T, HO :: TO] = new MkMapping[H :: T] {
+    override type Out = HO :: TO
 
-    override def apply(t: FieldType[K, Mapping[S]] :: T): Mapping[SO :: TO] = {
-      val smapping = single.apply(t.head)
-      val lmapping = lmapper.apply(t.tail)
-      new ConsMapping(smapping, lmapping)
+    override def apply(t: H :: T): Mapping[HO :: TO] = {
+      val hmapping = hMkMapping.apply(t.head)
+      val lmapping = tMkMapping.apply(t.tail)
+      new ConsMapping(hmapping, lmapping)
     }
   }
 
