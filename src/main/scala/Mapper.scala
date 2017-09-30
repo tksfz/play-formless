@@ -5,6 +5,7 @@ import play.api.data.Forms._
 import play.api.data.validation.Constraint
 import shapeless._
 import shapeless.labelled._
+import shapeless.ops.hlist.Align
 
 trait Mapper[T] {
   type Out
@@ -45,7 +46,7 @@ object Mapper {
     type Out = TO :: HNil
 
     override def apply(t: FieldType[K, Mapping[T]] :: HNil): Mapping[TO :: HNil] = {
-      h1.apply(t.head).transform(t => t :: HNil, b => b.head)
+      h1.apply(t.head).transform(to => to :: HNil, l => l.head)
     }
   }
 
@@ -53,14 +54,40 @@ object Mapper {
   (implicit
     single: Mapper.Aux[FieldType[K, Mapping[S]], SO],
     lmapper: Mapper.Aux[T, TO]
-  ): Mapper[FieldType[K, Mapping[S]] :: T] = new Mapper[FieldType[K, Mapping[S]] :: T] {
+  ): Mapper.Aux[FieldType[K, Mapping[S]] :: T, SO :: TO] = new Mapper[FieldType[K, Mapping[S]] :: T] {
     override type Out = SO :: TO
 
     override def apply(t: FieldType[K, Mapping[S]] :: T): Mapping[SO :: TO] = {
-      val smapping: Mapping[SO] = single.apply(t.head)
+      val smapping = single.apply(t.head)
       val lmapping = lmapper.apply(t.tail)
       new ConsMapping(smapping, lmapping)
     }
+  }
+
+  /**
+    * Case class mapping
+    */
+  implicit def hobjWithMappingsRecord[T, R <: HList, RO <: HList, L <: HList]
+  (implicit
+    gen: LabelledGeneric.Aux[T, L],
+   mapper: Mapper.Aux[R, RO],
+    align: Align[RO, L], // note these aligns have to come last
+   align2: Align[L, RO]
+  ): Aux[R, T] = new Mapper[R] {
+    type Out = T
+
+    override def apply(t: R): Mapping[T] = {
+      mapper.apply(t).transform(ro => gen.from(align.apply(ro)), t => align2(gen.to(t)))
+    }
+  }
+
+  /**
+    * Alternatively, we could reverse the syntax and do:
+    *
+    * val mapping = Mapper.withMappings(('field ->> nonEmptyText) :: HNil).to[T]
+    */
+  def forCaseClass[T] = new {
+    def withMappings[R <: HList](r: R)(implicit mapper: Mapper.Aux[R, T]) = mapper.apply(r)
   }
 
   class ConsMapping[H, T <: HList](hmapping: Mapping[H], tmapping: Mapping[T], val key: String = "", val constraints: Seq[Constraint[H :: T]] = Nil)
