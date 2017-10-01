@@ -22,13 +22,21 @@ object MkMapping {
   def get[L <: HList](l: L)(implicit mapper: MkMapping[L]) = mapper.apply(l)
 
   /**
+    * Instance for mappings
+    */
+  implicit def mkMapping[T] = new MkMapping[Mapping[T]] {
+    override type Out = T
+    override def apply(t: Mapping[T]): Mapping[T] = t
+  }
+
+  /**
     * Instance for record elements that supply a Mapping with a Symbol singleton key:
     *
     *     'foo ->> nonEmptyText
     */
   implicit def kvMkMapping[K <: Symbol, T]
   (implicit wk: Witness.Aux[K]): Aux[FieldType[K, Mapping[T]], FieldType[K, T]] = new MkMapping[FieldType[K, Mapping[T]]] {
-    type Out = FieldType[K, T]
+    override type Out = FieldType[K, T]
     override def apply(t: FieldType[K, Mapping[T]]): Mapping[FieldType[K, T]] = {
       // Since FieldType[K, V] == V tagged with K, the transformation is trivial
       t.withPrefix(wk.value.name).transform(t => t.asInstanceOf[FieldType[K, T]], identity)
@@ -45,7 +53,7 @@ object MkMapping {
   (implicit
     tMkMapping: MkMapping.Aux[T, TO]
   ): Aux[T :: HNil, TO :: HNil] = new MkMapping[T :: HNil] {
-    type Out = TO :: HNil
+    override type Out = TO :: HNil
 
     override def apply(l: T :: HNil): Mapping[TO :: HNil] = {
       tMkMapping.apply(l.head).transform(to => to :: HNil, l => l.head)
@@ -76,7 +84,7 @@ object MkMapping {
    align: Align[RO, L], // note these aligns have to come last
    align2: Align[L, RO]
   ): Aux[R, T] = new MkMapping[R] {
-    type Out = T
+    override type Out = T
 
     override def apply(t: R): Mapping[T] = {
       mapper.apply(t).transform(ro => gen.from(align.apply(ro)), t => align2(gen.to(t)))
