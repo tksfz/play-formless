@@ -6,6 +6,44 @@ import play.api.data.validation.Constraint
 import shapeless._
 import shapeless.labelled._
 import shapeless.ops.hlist.Align
+import shapeless.ops.record.Selector
+
+
+class SafeForm[RO <: HList, T] private(form: Form[T]) {
+
+  type Repr = SafeForm[RO, T]
+
+  // TODO: get this to work with Witness.Aux
+  def apply(k: Witness)
+  (implicit
+    kInRO: Selector[RO, k.T],
+   kSubSymbol: k.T <:< Symbol): Field = {
+    val field = k.value.name
+    form.apply(field)
+  }
+
+def bindFromRequest(data: Map[String, Seq[String]]): SafeForm[RO, T] = {
+  val newForm = form.bindFromRequest(data)
+  new SafeForm(newForm)
+}
+
+  def bindFromRequest()(implicit request: play.api.mvc.Request[_]) = {
+    val newForm = form.bindFromRequest()(request)
+    new SafeForm(newForm)
+  }
+}
+
+object SafeForm {
+  def apply[RO <: HList, T, L <: HList](premapping: Mapping[RO], data: Map[String, String], errors: Seq[FormError], value: Option[T])(implicit
+ gen: LabelledGeneric.Aux[T, L],
+ align: Align[RO, L], // note these aligns have to come last
+ align2: Align[L, RO]
+): SafeForm[RO, T] = {
+    val mapping: Mapping[T] = premapping.transform(ro => gen.from(align.apply(ro)), t => align2(gen.to(t)))
+    val form = Form(mapping, data, errors, value)
+    new SafeForm(form)
+  }
+}
 
 /**
   * Type class supporting creation of Mappings from specifications
@@ -32,14 +70,14 @@ object MkMapping {
   /**
     * Instance for record elements that supply a Mapping with a Symbol singleton key:
     *
-    *     'foo ->> nonEmptyText
+    *     'foo ->> nonEmptyText => 'foo ->> String
     */
   implicit def kvMkMapping[K <: Symbol, T]
   (implicit wk: Witness.Aux[K]): Aux[FieldType[K, Mapping[T]], FieldType[K, T]] = new MkMapping[FieldType[K, Mapping[T]]] {
     override type Out = FieldType[K, T]
     override def apply(t: FieldType[K, Mapping[T]]): Mapping[FieldType[K, T]] = {
       // Since FieldType[K, V] == V tagged with K, the transformation is trivial
-      t.withPrefix(wk.value.name).transform(t => t.asInstanceOf[FieldType[K, T]], identity)
+      t.withPrefix(wk.value.name).transform(t => field[K](t), identity)
     }
   }
 
@@ -62,8 +100,8 @@ object MkMapping {
 
   implicit def hconsMkMapping[H, HO, T <: HList, TO <: HList]
   (implicit
-   hMkMapping: MkMapping.Aux[H, HO],
-   tMkMapping: MkMapping.Aux[T, TO]
+    hMkMapping: MkMapping.Aux[H, HO],
+    tMkMapping: MkMapping.Aux[T, TO]
   ): Aux[H :: T, HO :: TO] = new MkMapping[H :: T] {
     override type Out = HO :: TO
 
@@ -80,14 +118,14 @@ object MkMapping {
   implicit def hobjWithMappingsRecord[T, R <: HList, RO <: HList, L <: HList]
   (implicit
    gen: LabelledGeneric.Aux[T, L],
-   mapper: MkMapping.Aux[R, RO],
+   mkMapping: MkMapping.Aux[R, RO],
    align: Align[RO, L], // note these aligns have to come last
    align2: Align[L, RO]
   ): Aux[R, T] = new MkMapping[R] {
     override type Out = T
 
-    override def apply(t: R): Mapping[T] = {
-      mapper.apply(t).transform(ro => gen.from(align.apply(ro)), t => align2(gen.to(t)))
+    override def apply(r: R): Mapping[T] = {
+      mkMapping.apply(r).transform(ro => gen.from(align.apply(ro)), t => align2(gen.to(t)))
     }
   }
 
@@ -97,7 +135,20 @@ object MkMapping {
     * val mapping = Mapper.withMappings(('field ->> nonEmptyText) :: HNil).to[T]
     */
   def forCaseClass[T] = new {
-    def withMappings[R <: HList](r: R)(implicit mapper: MkMapping.Aux[R, T]) = mapper.apply(r)
+    def withMappings[R <: HList](r: R)(implicit mapper: MkMapping.Aux[R, T]): Mapping[T] = mapper.apply(r)
+
+
+    def getWrapper[L <: HList, R <: HList, RO <: HList](r: R)
+  (implicit
+   gen: LabelledGeneric.Aux[T, L],
+   mkMapping: MkMapping.Aux[R, RO],
+   align: Align[RO, L], // note these aligns have to come last
+   align2: Align[L, RO]
+  ): SafeForm[RO, T] = {
+      val premapping = mkMapping.apply(r)
+      SafeForm.apply(premapping, Map(), Seq(), None)
+  }
+
   }
 
   class ConsMapping[H, T <: HList](hmapping: Mapping[H], tmapping: Mapping[T], val key: String = "", val constraints: Seq[Constraint[H :: T]] = Nil)

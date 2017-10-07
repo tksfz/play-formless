@@ -30,6 +30,23 @@ object Main {
   def two(): Unit = {
     val mapper = MkMapping.forCaseClass[Login].withMappings(record)
     val form = Form(mapper)
+
+    form("username")
+    //form('username)
     println(form.bindFromRequest(request))
+  }
+
+  val safeForm = MkMapping.forCaseClass[Login].getWrapper(record)
+
+  def three(): Unit = {
+    val newSafeForm = safeForm.bindFromRequest(request)
+    view(newSafeForm)
+  }
+
+
+  import shapeless.record._
+
+  def view(form: Main.safeForm.Repr) = {
+    form('username)
   }
 }
