@@ -1,9 +1,8 @@
 package org.tksfz.formless
 
-import play.api.data._
 import play.api.data.Forms._
+import play.api.data._
 import shapeless._
-import shapeless.labelled._
 import shapeless.syntax.singleton._
 
 object Main {
@@ -44,9 +43,8 @@ object Main {
   }
 
 
-  import shapeless.record._
-
   def view(form: Main.safeForm.Repr) = {
     form('username)
   }
+
 }
