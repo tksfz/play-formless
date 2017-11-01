@@ -1,9 +1,8 @@
 package org.tksfz.formless
 
-import play.api.data._
 import play.api.data.Forms._
+import play.api.data._
 import shapeless._
-import shapeless.labelled._
 import shapeless.syntax.singleton._
 
 object Main {
@@ -30,6 +29,22 @@ object Main {
   def two(): Unit = {
     val mapper = MkMapping.forCaseClass[Login].withMappings(record)
     val form = Form(mapper)
+
+    form("username")
+    //form('username)
     println(form.bindFromRequest(request))
   }
+
+  val safeForm = MkMapping.forCaseClass[Login].getWrapper(record)
+
+  def three(): Unit = {
+    val newSafeForm = safeForm.bindFromRequest(request)
+    view(newSafeForm)
+  }
+
+
+  def view(form: Main.safeForm.Repr) = {
+    form('username)
+  }
+
 }
