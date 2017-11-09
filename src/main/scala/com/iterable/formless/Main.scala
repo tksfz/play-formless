@@ -24,6 +24,8 @@ object Main {
     println(form2)
 
     two()
+
+    defaults()
   }
 
   def two(): Unit = {
@@ -45,6 +47,11 @@ object Main {
 
   def view(form: Main.safeForm.Repr) = {
     form('username)
+  }
+
+  def defaults() = {
+    val mapping = MkMapping.forCaseClass[Login].withMappingsAndDefaults(('password ->> text) :: HNil, DefaultsWithNonEmptyText)
+    println(mapping.bind(Map("username" -> "", "password" -> "pw")))
   }
 
 }
