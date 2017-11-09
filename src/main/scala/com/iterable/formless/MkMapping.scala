@@ -4,8 +4,8 @@ import play.api.data._
 import play.api.data.validation.Constraint
 import shapeless._
 import shapeless.labelled._
-import shapeless.ops.hlist.Align
-import shapeless.ops.record.Selector
+import shapeless.ops.hlist.{Align, RemoveAll, Union}
+import shapeless.ops.record.{MapValues, Selector}
 
 class SafeForm[RO <: HList, T] private(form: Form[T]) {
 
@@ -164,10 +164,46 @@ object MkMapping {
   def forCaseClass[T]: CaseClassMapping[T] = new CaseClassMapping
 }
 
+object DefaultsWithNonEmptyText extends Poly1 {
+  import play.api.data.Forms._
+  implicit def caseString = at[String](_ => nonEmptyText)
+  implicit def caseByte = at[Byte](_ => byteNumber)
+  implicit def caseShort = at[Short](_ => shortNumber)
+  implicit def caseInt = at[Int](_ => number)
+  implicit def caseLong = at[Long](_ => longNumber)
+  implicit def caseBoolean = at[Boolean](_ => boolean)
+  implicit def caseOption[T](implicit caseT: Case.Aux[T, Mapping[T]]) = at[Option[T]](_ => optional(caseT.value(null.asInstanceOf[T] :: HNil)))
+  implicit def caseSeq[T](implicit caseT: Case.Aux[T, Mapping[T]]) = at[Seq[T]](_ => seq(caseT.value(null.asInstanceOf[T] :: HNil)))
+}
+
 class CaseClassMapping[T] {
 
-  def withMappings[R <: HList](r: R)(implicit mkMapping: MkMapping.Aux[R, T]): Mapping[T] = {
-    mkMapping.apply(r)
+  def withMappings[M <: HList](mappings: M)(implicit mkMapping: MkMapping.Aux[M, T]): Mapping[T] = {
+    mkMapping.apply(mappings)
+  }
+
+  def withMappingsAndDefaults[L <: HList, M <: HList, MO <: HList, X, R <: HList, HF <: Poly, HFR <: HList, MHFR <: HList, MHFRO <: HList]
+  (mappings: M, defaults: HF)
+  (implicit
+    gen: LabelledGeneric.Aux[T, L],           // L: K ->> V
+
+    mkMapping: MkMapping.Aux[M, MO],          // M: K ->> Mapping[V], MO: K ->> V
+    removeAll: RemoveAll.Aux[L, MO, (X, R)],  // R: K ->> V
+    nullMapper: NullMapper[R],
+    mappedR: MapValues.Aux[HF, R, HFR],       // HFR: K ->> Mapping[V]
+
+    union: Union.Aux[M, HFR, MHFR],           // MHFR: K ->> Mapping[V]
+
+    mkUnionMapping: MkMapping.Aux[MHFR, MHFRO], // MHFRO: K ->> V
+    align: Align[MHFRO, L],
+    align2: Align[L, MHFRO]
+  ) = {
+    val r = nullMapper.apply
+    val mapped = mappedR.apply(r)
+    val unioned = union.apply(mappings, mapped)
+
+    val unionedMapping = mkUnionMapping.apply(unioned)
+    unionedMapping.transform[T](mhfro => gen.from(align.apply(mhfro)), t => align2.apply(gen.to(t)))
   }
 
   /**
@@ -227,4 +263,19 @@ class ConsMapping[H, T <: HList](
   override def verifying(constraints: Constraint[H :: T]*): ConsMapping[H, T] = {
     new ConsMapping(hfield, tfields, key, this.constraints ++ constraints.toSeq)
   }
+}
+
+/**
+ * Type class supporting creating a HList of type L filled with nulls.
+ */
+trait NullMapper[L <: HList] { def apply: L }
+
+object NullMapper {
+  implicit val hnilNullMapper: NullMapper[HNil] = new NullMapper[HNil] { def apply = HNil }
+
+  implicit def hlistNullMapper[H, T <: HList]
+  (implicit mct : NullMapper[T]): NullMapper[H :: T] =
+      new NullMapper[H :: T] {
+        def apply = null.asInstanceOf[H] :: mct.apply
+      }
 }
