@@ -35,7 +35,7 @@ object Main {
     println(form.bindFromRequest(request))
   }
 
-  val safeForm = MkMapping.forCaseClass[Login].getWrapper(record)
+  val safeForm = MkMapping.forCaseClass[Login].safeForm(record)
 
   def three(): Unit = {
     val newSafeForm = safeForm.bindFromRequest(request)

@@ -15,7 +15,7 @@ class SafeForm[RO <: HList, T] private(form: Form[T]) {
   def apply(k: Witness)
   (implicit
     kInRO: Selector[RO, k.T],
-   kSubSymbol: k.T <:< Symbol): Field = {
+    kSubSymbol: k.T <:< Symbol): Field = {
     val field = k.value.name
     form.apply(field)
   }
@@ -96,14 +96,12 @@ object MkMapping {
     wk: Witness.Aux[K]
   ): Aux[FieldType[K, Mapping[T]], FieldType[K, T]] = {
     new MkMapping[FieldType[K, Mapping[T]]] {
-
       override type Out = FieldType[K, T]
 
       override def apply(t: FieldType[K, Mapping[T]]): Mapping[FieldType[K, T]] = {
         // Since FieldType[K, V] == V tagged with K, the transformation is trivial
         t.withPrefix(wk.value.name).transform(t => field[K](t), identity)
       }
-
     }
   }
 
@@ -117,13 +115,11 @@ object MkMapping {
     tMkMapping: MkMapping.Aux[T, TO]
   ): Aux[T :: HNil, TO :: HNil] = {
     new MkMapping[T :: HNil] {
-
       override type Out = TO :: HNil
 
       override def apply(l: T :: HNil): Mapping[TO :: HNil] = {
         tMkMapping.apply(l.head).transform(to => to :: HNil, l => l.head)
       }
-
     }
   }
 
@@ -132,7 +128,6 @@ object MkMapping {
     tMkMapping: MkMapping.Aux[T, TO]
   ): Aux[H :: T, HO :: TO] = {
     new MkMapping[H :: T] {
-
       override type Out = HO :: TO
 
       override def apply(t: H :: T): Mapping[HO :: TO] = {
@@ -140,7 +135,6 @@ object MkMapping {
         val lmapping = tMkMapping.apply(t.tail)
         new ConsMapping(hmapping, lmapping)
       }
-
     }
   }
 
@@ -154,13 +148,11 @@ object MkMapping {
     align2: Align[L, RO]
   ): Aux[R, T] = {
     new MkMapping[R] {
-
       override type Out = T
 
       override def apply(r: R): Mapping[T] = {
         mkMapping.apply(r).transform(ro => gen.from(align.apply(ro)), t => align2(gen.to(t)))
       }
-
     }
   }
 
@@ -170,7 +162,6 @@ object MkMapping {
     * val mapping = Mapper.withMappings(('field ->> nonEmptyText) :: HNil).to[T]
     */
   def forCaseClass[T]: CaseClassMapping[T] = new CaseClassMapping
-
 }
 
 class CaseClassMapping[T] {
@@ -179,13 +170,17 @@ class CaseClassMapping[T] {
     mkMapping.apply(r)
   }
 
-  def getWrapper[L <: HList, R <: HList, RO <: HList](r: R)(implicit
+  /**
+    * @param mappings a record that specifies a mapping for each field
+    */
+  def safeForm[L <: HList, M <: HList, MO <: HList](mappings: M)
+  (implicit
     gen: LabelledGeneric.Aux[T, L],
-    mkMapping: MkMapping.Aux[R, RO],
-    align: Align[RO, L],
-    align2: Align[L, RO]
-  ): SafeForm[RO, T] = {
-    val premapping = mkMapping.apply(r)
+    mkMapping: MkMapping.Aux[M, MO],
+    align: Align[MO, L],
+    align2: Align[L, MO]
+  ): SafeForm[MO, T] = {
+    val premapping = mkMapping.apply(mappings)
     SafeForm.apply(premapping, Map(), Seq(), None)
   }
 
@@ -232,5 +227,4 @@ class ConsMapping[H, T <: HList](
   override def verifying(constraints: Constraint[H :: T]*): ConsMapping[H, T] = {
     new ConsMapping(hfield, tfields, key, this.constraints ++ constraints.toSeq)
   }
-
 }
