@@ -1,3 +1,6 @@
+name := "play-formless"
+organization := "com.iterable"
+version := "0.1-SNAPSHOT"
 scalaVersion := "2.11.11"
 
 libraryDependencies ++= Seq(
