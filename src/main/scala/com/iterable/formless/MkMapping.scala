@@ -1,4 +1,4 @@
-package org.tksfz.formless
+package com.iterable.formless
 
 import play.api.data._
 import play.api.data.validation.Constraint
@@ -20,15 +20,27 @@ class SafeForm[RO <: HList, T] private(form: Form[T]) {
     form.apply(field)
   }
 
-  def bindFromRequest(data: Map[String, Seq[String]]): SafeForm[RO, T] = {
+  def bindFromRequest(data: Map[String, Seq[String]]): Repr = {
     val newForm = form.bindFromRequest(data)
     new SafeForm(newForm)
   }
 
-  def bindFromRequest()(implicit request: play.api.mvc.Request[_]) = {
+  def bindFromRequest()(implicit request: play.api.mvc.Request[_]): Repr = {
     val newForm = form.bindFromRequest()(request)
     new SafeForm(newForm)
   }
+
+  def data: Map[String, String] = form.data
+
+  def errors: Seq[FormError] = form.errors
+
+  def fill(value: T): Repr = new SafeForm(form.fill(value))
+
+  def fold[R](hasErrors: Repr => R, success: T => R): R = {
+    form.fold(badForm => hasErrors(new SafeForm(badForm)), success)
+  }
+
+  def hasErrors: Boolean = form.hasErrors
 
 }
 
@@ -163,8 +175,8 @@ object MkMapping {
 
 class CaseClassMapping[T] {
 
-  def withMappings[R <: HList](r: R)(implicit mapper: MkMapping.Aux[R, T]): Mapping[T] = {
-    mapper.apply(r)
+  def withMappings[R <: HList](r: R)(implicit mkMapping: MkMapping.Aux[R, T]): Mapping[T] = {
+    mkMapping.apply(r)
   }
 
   def getWrapper[L <: HList, R <: HList, RO <: HList](r: R)(implicit

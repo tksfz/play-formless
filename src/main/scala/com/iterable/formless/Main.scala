@@ -1,4 +1,4 @@
-package org.tksfz.formless
+package com.iterable.formless
 
 import play.api.data.Forms._
 import play.api.data._
