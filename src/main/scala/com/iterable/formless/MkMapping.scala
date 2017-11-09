@@ -182,8 +182,8 @@ class CaseClassMapping[T] {
     mkMapping.apply(mappings)
   }
 
-  def withMappingsAndDefaults[L <: HList, M <: HList, MO <: HList, X, R <: HList, HF <: Poly, HFR <: HList, MHFR <: HList, MHFRO <: HList]
-  (mappings: M, defaults: HF)
+  def withDefaultsAndMappings[L <: HList, M <: HList, MO <: HList, X, R <: HList, HF <: Poly, HFR <: HList, MHFR <: HList, MHFRO <: HList]
+  (defaults: HF, mappings: M)
   (implicit
     gen: LabelledGeneric.Aux[T, L],           // L: K ->> V
 

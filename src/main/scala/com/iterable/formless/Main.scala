@@ -50,7 +50,7 @@ object Main {
   }
 
   def defaults() = {
-    val mapping = MkMapping.forCaseClass[Login].withMappingsAndDefaults(('password ->> text) :: HNil, DefaultsWithNonEmptyText)
+    val mapping = MkMapping.forCaseClass[Login].withDefaultsAndMappings(DefaultsWithNonEmptyText, 'password ->> text :: HNil)
     println(mapping.bind(Map("username" -> "", "password" -> "pw")))
   }
 
