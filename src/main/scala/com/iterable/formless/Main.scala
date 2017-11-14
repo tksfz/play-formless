@@ -1,5 +1,9 @@
 package com.iterable.formless
 
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection._
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.string.Url
 import play.api.data.Forms._
 import play.api.data._
 import shapeless._
@@ -8,6 +12,13 @@ import shapeless.syntax.singleton._
 object Main {
 
   case class Login(username: String, password: String)
+
+  case class CreateAccount(
+    name: String Refined NonEmpty,
+    numUsers: Int Refined Positive,
+    paid: Boolean,
+    website: String Refined Url
+  )
 
   val record =
       ('password ->> nonEmptyText) :: ('username ->> nonEmptyText) :: HNil
