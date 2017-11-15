@@ -44,14 +44,14 @@ object Main {
   }
 
   def two(): Unit = {
-    val form = MkMapping.forCaseClass[Login].withMappings(record)
+    val form = SafeForm.forCaseClass[Login].withMappings(record)
 
     form('username)
     //form('username)
     println(form.bindFromRequest(request))
   }
 
-  val safeForm = MkMapping.forCaseClass[Login].withMappings(record)
+  val safeForm = SafeForm.forCaseClass[Login].withMappings(record)
 
   def three(): Unit = {
     val newSafeForm = safeForm.bindFromRequest(request)
@@ -64,12 +64,12 @@ object Main {
   }
 
   def defaults() = {
-    val safeForm = MkMapping.forCaseClass[Login].withDefaultsAndMappings(DefaultsWithNonEmptyText, 'password ->> text :: HNil)
+    val safeForm = SafeForm.forCaseClass[Login].withDefaultsAndMappings(DefaultsWithNonEmptyText, 'password ->> text :: HNil)
     println(safeForm.bindFromRequest(Map("username" -> Seq(""), "password" -> Seq("pw"))))
   }
 
   def refinedGood(): Unit = {
-    val safeForm = MkMapping.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
+    val safeForm = SafeForm.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
     val values = Map(
       "name" -> Seq("foo"),
       "numUsers" -> Seq("100"),
@@ -81,7 +81,7 @@ object Main {
   }
 
   def refinedBad(): Unit = {
-    val safeForm = MkMapping.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
+    val safeForm = SafeForm.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
     val values = Map(
       "name" -> Seq(""),
       "numUsers" -> Seq("-1"),

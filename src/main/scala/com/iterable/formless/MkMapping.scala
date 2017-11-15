@@ -98,11 +98,5 @@ object MkMapping {
     }
   }
 
-  /**
-    * Alternatively, we could reverse the syntax and do:
-    *
-    * val mapping = Mapper.withMappings(('field ->> nonEmptyText) :: HNil).to[T]
-    */
-  def forCaseClass[T]: CaseClassMapping[T] = new CaseClassMapping
 }
 

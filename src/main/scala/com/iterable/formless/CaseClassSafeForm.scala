@@ -4,7 +4,7 @@ import shapeless.{::, HList, HNil, LabelledGeneric, Poly}
 import shapeless.ops.hlist.{Align, RemoveAll, Union}
 import shapeless.ops.record.MapValues
 
-class CaseClassMapping[T] {
+private[formless] class CaseClassSafeForm[T] {
 
   /**
     * @param mappings a record that specifies a mapping for each field

@@ -46,6 +46,8 @@ case class SafeForm[RO <: HList, T] private(form: Form[T]) {
 
 object SafeForm {
 
+  def forCaseClass[T] = new CaseClassSafeForm[T]
+
   def apply[RO <: HList, T, L <: HList](
     premapping: Mapping[RO],
     data: Map[String, String],
