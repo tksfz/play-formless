@@ -5,9 +5,11 @@ import shapeless.{HList, LabelledGeneric, Witness}
 import shapeless.ops.hlist.Align
 import shapeless.ops.record.Selector
 
-class SafeForm[RO <: HList, T] private(form: Form[T]) {
+case class SafeForm[RO <: HList, T] private(form: Form[T]) {
 
   type Repr = SafeForm[RO, T]
+
+  def mapping = form.mapping
 
   // TODO: get this to work with Witness.Aux
   def apply(k: Witness)
