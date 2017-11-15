@@ -1,14 +1,23 @@
 package com.iterable.formless
 
-import play.api.data.Mapping
 import shapeless.{::, HList, HNil, LabelledGeneric, Poly}
 import shapeless.ops.hlist.{Align, RemoveAll, Union}
 import shapeless.ops.record.MapValues
 
 class CaseClassMapping[T] {
 
-  def withMappings[M <: HList](mappings: M)(implicit mkMapping: MkMapping.Aux[M, T]): Mapping[T] = {
-    mkMapping.apply(mappings)
+  /**
+    * @param mappings a record that specifies a mapping for each field
+    */
+  def withMappings[L <: HList, M <: HList, MO <: HList](mappings: M)
+  (implicit
+    gen: LabelledGeneric.Aux[T, L],
+    mkMapping: MkMapping.Aux[M, MO],
+    align: Align[MO, L],
+    align2: Align[L, MO]
+  ): SafeForm[MO, T] = {
+    val premapping = mkMapping.apply(mappings)
+    SafeForm.apply(premapping, Map(), Seq(), None)
   }
 
   def withDefaults[L <: HList, HF <: Poly, HFL <: HList, HFLO <: HList](defaults: HF)(implicit
@@ -18,11 +27,12 @@ class CaseClassMapping[T] {
     mkMapping: MkMapping.Aux[HFL, HFLO], // HFLO: K ->> V
     align: Align[HFLO, L],
     align2: Align[L, HFLO]
-  ) = {
+  ): SafeForm[HFLO, T] = {
     val l = nullMapper.apply
     val mapped = mappedL.apply(l)
     val mapping = mkMapping.apply(mapped)
-    mapping.transform[T](hfro => gen.from(align.apply(hfro)), t => align2.apply(gen.to(t)))
+    //mapping.transform[T](hfro => gen.from(align.apply(hfro)), t => align2.apply(gen.to(t)))
+    SafeForm(mapping, Map(), Seq(), None)
   }
 
   def withDefaultsAndMappings[L <: HList, M <: HList, MO <: HList, X, R <: HList, HF <: Poly, HFR <: HList, MHFR <: HList, MHFRO <: HList]
@@ -40,27 +50,14 @@ class CaseClassMapping[T] {
     mkUnionMapping: MkMapping.Aux[MHFR, MHFRO], // MHFRO: K ->> V
     align: Align[MHFRO, L],
     align2: Align[L, MHFRO]
-  ) = {
+  ): SafeForm[MHFRO, T] = {
     val r = nullMapper.apply
     val mapped = mappedR.apply(r)
     val unioned = union.apply(mappings, mapped)
 
     val unionedMapping = mkUnionMapping.apply(unioned)
-    unionedMapping.transform[T](mhfro => gen.from(align.apply(mhfro)), t => align2.apply(gen.to(t)))
-  }
-
-  /**
-    * @param mappings a record that specifies a mapping for each field
-    */
-  def safeForm[L <: HList, M <: HList, MO <: HList](mappings: M)
-  (implicit
-    gen: LabelledGeneric.Aux[T, L],
-    mkMapping: MkMapping.Aux[M, MO],
-    align: Align[MO, L],
-    align2: Align[L, MO]
-  ): SafeForm[MO, T] = {
-    val premapping = mkMapping.apply(mappings)
-    SafeForm.apply(premapping, Map(), Seq(), None)
+    SafeForm(unionedMapping, Map(), Seq(), None)
+    //unionedMapping.transform[T](mhfro => gen.from(align.apply(mhfro)), t => align2.apply(gen.to(t)))
   }
 
 }

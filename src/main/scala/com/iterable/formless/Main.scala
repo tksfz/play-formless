@@ -44,15 +44,14 @@ object Main {
   }
 
   def two(): Unit = {
-    val mapper = MkMapping.forCaseClass[Login].withMappings(record)
-    val form = Form(mapper)
+    val form = MkMapping.forCaseClass[Login].withMappings(record)
 
-    form("username")
+    form('username)
     //form('username)
     println(form.bindFromRequest(request))
   }
 
-  val safeForm = MkMapping.forCaseClass[Login].safeForm(record)
+  val safeForm = MkMapping.forCaseClass[Login].withMappings(record)
 
   def three(): Unit = {
     val newSafeForm = safeForm.bindFromRequest(request)
@@ -65,32 +64,32 @@ object Main {
   }
 
   def defaults() = {
-    val mapping = MkMapping.forCaseClass[Login].withDefaultsAndMappings(DefaultsWithNonEmptyText, 'password ->> text :: HNil)
-    println(mapping.bind(Map("username" -> "", "password" -> "pw")))
+    val safeForm = MkMapping.forCaseClass[Login].withDefaultsAndMappings(DefaultsWithNonEmptyText, 'password ->> text :: HNil)
+    println(safeForm.bindFromRequest(Map("username" -> Seq(""), "password" -> Seq("pw"))))
   }
 
   def refinedGood(): Unit = {
-    val mapping = MkMapping.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
+    val safeForm = MkMapping.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
     val values = Map(
-      "name" -> "foo",
-      "numUsers" -> "100",
-      "paid" -> "true",
-      "zip" -> "94107"
+      "name" -> Seq("foo"),
+      "numUsers" -> Seq("100"),
+      "paid" -> Seq("true"),
+      "zip" -> Seq("94107")
     )
 
-    println(mapping.bind(values))
+    println(safeForm.bindFromRequest(values))
   }
 
   def refinedBad(): Unit = {
-    val mapping = MkMapping.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
+    val safeForm = MkMapping.forCaseClass[CreateAccount].withDefaults(DefaultsWithRefined)
     val values = Map(
-      "name" -> "",
-      "numUsers" -> "-1",
-      "paid" -> "true",
-      "zip" -> "941XX"
+      "name" -> Seq(""),
+      "numUsers" -> Seq("-1"),
+      "paid" -> Seq("true"),
+      "zip" -> Seq("941XX")
     )
 
-    println(mapping.bind(values))
+    println(safeForm.bindFromRequest(values))
   }
 
 }
