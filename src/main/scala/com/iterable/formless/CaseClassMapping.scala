@@ -11,6 +11,20 @@ class CaseClassMapping[T] {
     mkMapping.apply(mappings)
   }
 
+  def withDefaults[L <: HList, HF <: Poly, HFL <: HList, HFLO <: HList](defaults: HF)(implicit
+    gen: LabelledGeneric.Aux[T, L],      // L: K ->> V
+    nullMapper: NullMapper[L],
+    mappedL: MapValues.Aux[HF, L, HFL],  // HFL: K ->> Mapping[V]
+    mkMapping: MkMapping.Aux[HFL, HFLO], // HFLO: K ->> V
+    align: Align[HFLO, L],
+    align2: Align[L, HFLO]
+  ) = {
+    val l = nullMapper.apply
+    val mapped = mappedL.apply(l)
+    val mapping = mkMapping.apply(mapped)
+    mapping.transform[T](hfro => gen.from(align.apply(hfro)), t => align2.apply(gen.to(t)))
+  }
+
   def withDefaultsAndMappings[L <: HList, M <: HList, MO <: HList, X, R <: HList, HF <: Poly, HFR <: HList, MHFR <: HList, MHFRO <: HList]
   (defaults: HF, mappings: M)
   (implicit
