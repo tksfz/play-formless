@@ -1,7 +1,6 @@
 package com.iterable.formless
 
 import play.api.data._
-import play.api.data.validation.Constraint
 import shapeless._
 import shapeless.labelled._
 import shapeless.ops.hlist.Align
@@ -99,11 +98,5 @@ object MkMapping {
     }
   }
 
-  /**
-    * Alternatively, we could reverse the syntax and do:
-    *
-    * val mapping = Mapper.withMappings(('field ->> nonEmptyText) :: HNil).to[T]
-    */
-  def forCaseClass[T]: CaseClassMapping[T] = new CaseClassMapping
 }
 
