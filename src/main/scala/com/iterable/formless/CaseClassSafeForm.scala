@@ -31,8 +31,7 @@ private[formless] class CaseClassSafeForm[T] {
   ): SafeForm[HFLO, T] = {
     val l = nullMapper.apply
     val mapped = mappedL.apply(l)
-    val mapping = mkMapping.apply(mapped)
-    SafeForm(mapping, Map(), Seq(), None)
+    withMappings(mapped)
   }
 
   def withDefaultsAndMappings[L <: HList, M <: HList, MO <: HList, X, R <: HList, HF <: Poly, HFR <: HList, MHFR <: HList, MHFRO <: HList]
@@ -54,9 +53,7 @@ private[formless] class CaseClassSafeForm[T] {
     val r = nullMapper.apply
     val mapped = mappedR.apply(r)
     val unioned = union.apply(mappings, mapped)
-
-    val unionedMapping = mkUnionMapping.apply(unioned)
-    SafeForm(unionedMapping, Map(), Seq(), None)
+    withMappings(unioned)
   }
 
 }
